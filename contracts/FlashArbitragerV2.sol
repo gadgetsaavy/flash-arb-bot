@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.4;
+pragma solidity ^0.8.4;
 
 /**
     Ropsten instances:
@@ -90,14 +90,16 @@ contract ArbitragerV2 is IERC3156FlashBorrower {
 
         uint256 repay = amount + fee;
 
-        // Transfer profits
-        borrowedTokenContract.transfer(
-            extraData.profitReceiver,
-            amountReceivedBorrowedToken - repay - extraData.amountRequired
-        );
+        // Calculate profits and ensure no underflow
+        uint256 profit = amountReceivedBorrowedToken - repay - extraData.amountRequired;
+        require(profit >= 0, "ARBITRAGER_PROFIT_UNDERFLOW");
 
-        // Approve lender
+        // Transfer profits
+        borrowedTokenContract.transfer(extraData.profitReceiver, profit);
+
+        // Approve lender and reset allowance to zero after
         borrowedTokenContract.approve(address(lender), repay);
+        borrowedTokenContract.approve(address(lender), 0);
 
         return keccak256('ERC3156FlashBorrower.onFlashLoan');
     }
